@@ -1,0 +1,9 @@
+
+.pdf-downloader-scraper/
+.env
+*.sqlite3
+*.pyc
+__pycache__
+staticfiles
+.vscode
+downloads/
