@@ -1,6 +1,7 @@
 from time import sleep
 from os import listdir
 from os.path import dirname, abspath, getctime
+from pathlib import Path
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -25,6 +26,7 @@ def pdf_downloader():
     try:
         # webdriver definitions
         download_path = dirname(abspath(__file__)) + '/downloads/'
+        Path(download_path).mkdir(parents=True, exist_ok=True)
         prefs = {"download.default_directory":download_path}
         options = webdriver.ChromeOptions()
         options.binary_location = '/usr/bin/google-chrome'
@@ -133,7 +135,7 @@ def send_mail(email_list, subject, content):
         server.quit()
     except Exception as e:
         print(e)
-        
+
 def main():
     email_list = config('EMAIL_LIST', cast=Csv())
     status, filename, message_error = pdf_downloader()
