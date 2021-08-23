@@ -1,3 +1,11 @@
 URL=https://site.com
-EMAIL_LIST=pdfdown@mailinator.com, pdfscrap@mailinator.com
+SITE_NAME=Site Name
 TEXT_LIST=Text1, Text2 with more words, Other text
+EMAIL_LIST=pdfdown@mailinator.com, pdfscrap@mailinator.com
+EMAIL_SENDER=sender@mail.com
+EMAIL_SENDER_NAME=Sender Name
+EMAIL_SUBJECT=New Updates
+EMAIL_HOST=smtp.sendgrid.net
+EMAIL_PORT=465
+EMAIL_USERNAME=apikey
+SENDGRID_API_KEY=

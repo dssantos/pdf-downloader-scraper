@@ -1,12 +1,17 @@
 from time import sleep
 from os import listdir
 from os.path import dirname, abspath, getctime
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from selenium import webdriver
+from selenium.common import exceptions
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import SessionNotCreatedException, WebDriverException, NoSuchElementException
 from decouple import config, Csv
 import pdfplumber
+
 
 def last_file(download_path):
     '''Must return the filename of the most recent file in the folder'''
@@ -74,7 +79,6 @@ def pdf_downloader():
 
 def pdf_scraper(file_path):
     '''Must return a raw text of the PDF file'''
-    file_path = dirname(abspath(__file__)) + '/downloads/diario_000548_20210820.pdf'
     pdf = pdfplumber.open(file_path)
     texts = []
     for num in range(len(pdf.pages)):
@@ -86,26 +90,69 @@ def pdf_scraper(file_path):
     text = '\n'.join(texts)
     return text
 
-def send_mail(receiver_email, subject, msg):
+def send_mail(email_list, subject, content):
     '''Sends a personalized message to specified email list'''
-    return 'done'
+    try:
+        # Create message container - the correct MIME type is multipart/alternative.
+        sender = f'{config("EMAIL_SENDER_NAME")} <{config("EMAIL_SENDER")}>'
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = sender    # Format: 'Name <user@mail.com>'
+        msg['To'] = ", ".join(email_list)
 
+        # Create the body of the message (a plain-text and an HTML version).
+        text = content
+        url = config('URL')
+        html = f'''
+        <html>
+        <head></head>
+        <body>
+            {text}
+            Last update: <a href="{url}">{url}</a>
+        </body>
+        </html>
+        '''.replace("\n", "</br>")
 
-email_list = config('EMAIL_LIST', cast=Csv())
-status, filename, message_error = pdf_downloader()
-if status == 'Success':
-    file_path = dirname(abspath(__file__)) + '/downloads/' + filename
-    pdf_content = pdf_scraper(file_path)
-    text_list = config('TEXT_LIST', cast=Csv())
-    raw_text = pdf_content.lower().replace('  ', ' ').replace('\n', ' ')
-    if any(text_to_find.lower() in raw_text for text_to_find in text_list):
-        for text_to_find in text_list:
-            if text_to_find.lower() in raw_text:
-                msg = f'{text_to_find} found in {filename}'
-                send_mail(email_list, 'New updates', msg)
-                print(f'Sending mail: {msg} to {", ".join(email_list)}')
+        # Record the MIME types of both parts - text/plain and text/html.
+        part1 = MIMEText(text, 'plain')
+        part2 = MIMEText(html, 'html')
+
+        # Attach parts into message container.
+        # According to RFC 2046, the last part of a multipart message, in this case
+        # the HTML message, is best and preferred.
+        msg.attach(part1)
+        msg.attach(part2)
+
+        # Send the message via local SMTP server.
+        server = smtplib.SMTP_SSL(config('EMAIL_HOST'), config('EMAIL_PORT', cast=int))
+        server.ehlo()
+        server.login('apikey', config('SENDGRID_API_KEY'))
+        # sendmail function takes 3 arguments: sender's address, recipient's address
+        # and message to send - here it is sent as one string.
+        server.sendmail(sender, email_list, msg.as_string())
+        server.quit()
+    except Exception as e:
+        print(e)
+        
+def main():
+    email_list = config('EMAIL_LIST', cast=Csv())
+    status, filename, message_error = pdf_downloader()
+    if status == 'Success':
+        file_path = dirname(abspath(__file__)) + '/downloads/' + filename
+        pdf_content = pdf_scraper(file_path)
+        text_list = config('TEXT_LIST', cast=Csv())
+        raw_text = pdf_content.lower().replace('  ', ' ').replace('\n', ' ')
+        if any(text_to_find.lower() in raw_text for text_to_find in text_list):
+            for text_to_find in text_list:
+                if text_to_find.lower() in raw_text:
+                    msg = f'{text_to_find} found in {filename}'
+                    send_mail(email_list, f'{config("EMAIL_SUBJECT")} {config("SITE_NAME")}', msg)
+                    print(f'Sending mail: {msg} to {", ".join(email_list)}')
+        else:
+            print('Texts not found:\n'+"\n".join(text_list))
     else:
-        print('Texts not found:\n'+"\n".join(text_list))
-else:
-    send_mail(email_list, 'Error', message_error)
-    print(f'Sending mail with error details:\n{message_error}')
+        send_mail(email_list, f'Error {config("SITE_NAME")}', message_error)
+        print(f'Sending mail with error details:\n{message_error}')
+
+if __name__ == "__main__":
+    main()
