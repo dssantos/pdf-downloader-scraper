@@ -86,9 +86,13 @@ def pdf_scraper(file_path):
     for num in range(len(pdf.pages)):
         page = pdf.pages[num]
         l_page = page.crop((0, 0.1 * float(page.height), 0.5 * float(page.width), 0.93 * float(page.height)))
-        texts.append(l_page.extract_text())
+        l_page_text = l_page.extract_text()
+        if l_page_text is not None:
+            texts.append(l_page_text)
         r_page = page.crop((0.5 * float(page.width), 0.1 * float(page.height), page.width, 0.93 * float(page.height)))
-        texts.append(r_page.extract_text())
+        r_page_text = r_page.extract_text()
+        if r_page_text is not None:
+            texts.append(r_page_text)
     text = '\n'.join(texts)
     return text
 
